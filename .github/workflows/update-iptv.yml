@@ -1,0 +1,65 @@
+name: 更新 IPTV 播放列表
+
+on:
+  schedule:
+    # UTC 20:00 = 北京时间 04:00，每天自动跑一次
+    - cron: "0 20 * * *"
+  workflow_dispatch:            # 也可以到 Actions 页面手动触发
+  push:
+    paths:
+      - "sources.txt"
+      - "scripts/build-playlist.py"
+      - ".github/workflows/update-iptv.yml"
+
+permissions:
+  contents: write               # 需要写权限才能把结果提交回仓库
+
+concurrency:
+  group: update-iptv
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # ⚠️ EPG 地址请自行确认可用（在浏览器打开看是否返回 XML）。
+      #   填错不影响播放，只是没有节目单；留空则完全不写 url-tvg。
+      EPG: "https://epg.51zmt.top:8001/e.xml"
+      MAX_PER_CHANNEL: "2"      # 同一频道保留几条备用线路
+      MAX_PER_FAMILY: "1"       # 每个地址族最多几条 -> 1 表示 IPv6+IPv4 各一条，跨族冗余
+      PREFER_FAMILY: "ipv6"     # 同频道选线路时的地址族偏好：ipv6 / ipv4 / none
+      MIN_CHANNELS: "15"        # 少于该数量视为异常，不提交
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 源体检（仅记录，不阻断）
+        continue-on-error: true
+        run: python3 scripts/build-playlist.py sources.txt --probe-only
+
+      - name: 生成播放列表
+        run: |
+          python3 scripts/build-playlist.py sources.txt \
+            -o output/result.m3u \
+            --epg "$EPG" \
+            --max-per-channel "$MAX_PER_CHANNEL" \
+            --max-per-family "$MAX_PER_FAMILY" \
+            --prefer-family "$PREFER_FAMILY" \
+            --min-channels "$MIN_CHANNELS" \
+            --list
+
+      - name: 提交结果
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add output/result.m3u
+          if git diff --staged --quiet; then
+            echo "内容无变化，跳过提交"
+          else
+            git commit -m "chore: 更新播放列表 $(date -u +%Y-%m-%d)"
+            git push
+          fi
