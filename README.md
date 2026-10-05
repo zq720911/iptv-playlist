@@ -68,6 +68,19 @@ https://cdn.jsdelivr.net/gh/<你的用户名>/<仓库名>@main/output/result.m3u
 python3 scripts/build-playlist.py sources.txt --probe-only
 ```
 
+### 已实测记录（2025，广西电信 IPv6 环境）
+
+| 源 | 结果 |
+|---|---|
+| `iptv-org.github.io/iptv/countries/cn.m3u` | 可下载，145 条 → 筛出 **央视 21 / 卫视 11**；**0 条 IPv6 字面量**（72 条 IPv4 + 73 条域名） |
+
+结论：**这一个源够用但不够好**——卫视覆盖偏薄（只有北京/江苏/浙江/山东/四川/广东/深圳/云南/延边/兵团等），
+且完全没有 IPv6 线路。想要完整的省级卫视 + IPv6 高码率源，必须再补 1~2 个国内聚合项目的产物。
+
+脚本已同时支持两套台名写法，国内源的「`CCTV-1 综合高清`」和海外源的
+「`CCTV-1 HD (1080p) [Not 24/7]`」都会被清洗、归并、并自动把罗马字台名还原成中文
+（`Beijing Satellite TV` → `北京卫视`）。所以中外源可以放心混着用。
+
 或在 GitHub Actions 日志里看 `[probe] 可用源 x/y`。建议保留 3~5 个可用源互相补台。
 
 ## 自定义
