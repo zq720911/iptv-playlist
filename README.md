@@ -3,8 +3,12 @@
 用 GitHub Actions 每天自动跑一次：拉取多个公开源 → 筛选频道 → 去重 → 生成干净 m3u，
 提交回仓库。你只要在 Apple TV 上订阅那个 URL，就有一个**不会因为别人删库而消失**的播放列表。
 
-> 只包含央视 + 卫视，已剔除购物/付费/测试频道。
+> 分三组：**央视** / **卫视** / **港澳台**，已剔除购物/付费/测试频道。
 > 这些公开源绝大多数没有官方授权，仅限个人自用，请勿公开传播或商用。
+>
+> ⚠️ **港澳台组（凤凰、翡翠台、明珠台、无线新闻、TVBS、三立、东森、靖天等约 20 个台）的可用性明显低于国内台**：
+> 多为境外信号、常被 geo-block、清晰度和在线率波动大。列表里留了就说明当前能拉到流，
+> 但随时可能失效——不需要这一组的话，把 `DEFAULT_INCLUDE` 末尾的 `HKMO_TW_PATTERN` 去掉即可。
 
 ## 目录结构
 
@@ -88,12 +92,15 @@ python3 scripts/build-playlist.py sources.txt --probe-only
 筛选规则都走命令行参数，改 `.github/workflows/update-iptv.yml` 里的调用即可：
 
 ```bash
-# 只留央视+卫视（默认），每频道最多 2 条备用线路
+# 默认：央视 + 卫视 + 港澳台，每频道最多 2 条备用线路
 python3 scripts/build-playlist.py sources.txt -o output/result.m3u \
     --epg "https://epg.51zmt.top:8001/e.xml" --max-per-channel 2
 
-# 加上凤凰、翡翠等
---include '央视|卫视|凤凰|翡翠'
+# 不要港澳台那一组（去掉 HKMO_TW_PATTERN 的等价写法）
+--include 'CCTV[-\s]?\d{1,2}\+?|央视|CGTN|中国教育|[一-龥]{2,4}卫视|Satellite TV'
+
+# 再加点别的台
+--include '央视|卫视|凤凰|翡翠|澳视'
 
 # 每频道只留 1 条（最干净）/ 3 条（最容错）
 --max-per-channel 1

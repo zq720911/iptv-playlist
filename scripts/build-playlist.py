@@ -32,12 +32,22 @@ from collections import OrderedDict, defaultdict
 # 默认筛选规则
 # ---------------------------------------------------------------------------
 
+# 港澳台频道：单独分一组。这些台多是境外信号，可用性和画质波动比国内台大得多。
+# 注意写「明珠台」而不是「明珠」，否则会把内地的「杭州明珠」也划进来。
+HKMO_TW_PATTERN = (
+    r"凤凰中文|凤凰资讯|凤凰香港|凤凰卫视"
+    r"|翡翠台|明珠台|无线新闻|无线星河|TVBS|三立|东森|天映|靖天"
+    r"|星空卫视|星空衛視|香港卫视|大湾区卫视"
+    r"|澳视|澳门|莲花卫视|亚洲电视|ViuTV|HOY|寰宇|美亚"
+)
+
 # 保留：央视（只认带编号的 CCTV，避免收进 CCTV-Storm Music 这类付费/海外服务）
 DEFAULT_INCLUDE = (
     r"CCTV[-\s]?\d{1,2}\+?(?![\dKk])"              # CCTV-1 .. CCTV-17、CCTV-5+
     r"|CCTV[-\s]?(?:4K|8K)"                        # CCTV-4K / CCTV-8K
     r"|央视|中央电视|CGTN|中国教育"
     r"|[\u4e00-\u9fff]{2,4}卫视|Satellite\s*TV"     # 中文台名 + 海外源的罗马字台名
+    r"|" + HKMO_TW_PATTERN                          # 港澳台
 )
 
 # 丢弃：购物频道、付费/加密频道、测试条目，以及央视的付费子频道（中英文两种写法）
@@ -63,6 +73,8 @@ CCTV_RE = re.compile(r"CCTV[-\s]?(\d{1,2})(\+)?(?![\dKk])", re.IGNORECASE)
 CCTV_SPECIAL_RE = re.compile(r"CCTV[-\s]?(4K|8K|中视购物)", re.IGNORECASE)
 SATELLITE_RE = re.compile(r"[\u4e00-\u9fff]{2,4}卫视|Satellite\s*TV", re.IGNORECASE)
 CCTV_GROUP_RE = re.compile(r"CCTV|央视|中央电视|CGTN|中国教育", re.IGNORECASE)
+HKMO_TW_RE = re.compile(HKMO_TW_PATTERN, re.IGNORECASE)
+LABEL_TAIL_RE = re.compile(r"\s*(?:高清|标清|4K|8K)$")   # 归并时去掉展示名的画质尾巴
 
 QUALITY_RANK = [("8k", 0), ("4k", 0), ("uhd", 0), ("超清", 1), ("蓝光", 1),
                 ("1080", 2), ("高清", 2), ("高码", 2), ("hd", 2), ("fhd", 2),
@@ -108,6 +120,10 @@ ALIASES = {
     "bingtuan satellite tv": "兵团卫视",
     "yanbian satellite tv": "延边卫视",
     "xiamen satellite tv": "厦门卫视",
+    # 繁简统一，避免同一频道被拆成两条
+    "星空衛視": "星空卫视",
+    "翡翠台": "翡翠台",
+    "明珠台": "明珠台",
 }
 
 
@@ -238,7 +254,11 @@ def channel_key(name: str) -> str:
     if m:
         return m.group(0)              # 例如 湖南卫视
 
-    return SEP_RE.sub("", name).lower()
+    m = HKMO_TW_RE.search(name)
+    if m:
+        return m.group(0)              # 例如 凤凰中文
+
+    return SEP_RE.sub("", LABEL_TAIL_RE.sub("", name)).lower()
 
 
 def quality_rank(name: str) -> int:
@@ -249,6 +269,9 @@ def quality_rank(name: str) -> int:
 
 
 def group_of(name: str) -> str:
+    # 港澳台先判：凤凰卫视 / 星空卫视 / 香港卫视 这类虽然叫"卫视"，但习惯上归港澳台
+    if HKMO_TW_RE.search(name):
+        return "港澳台"
     if CCTV_GROUP_RE.search(name):
         return "央视"
     if SATELLITE_RE.search(name):
@@ -408,7 +431,7 @@ def main() -> int:
 
     # ---- 排序 + 输出 -------------------------------------------------------
     def final_key(it):
-        gorder = {"央视": 0, "卫视": 1, "其他": 2}.get(it["group"], 3)
+        gorder = {"央视": 0, "卫视": 1, "港澳台": 2, "其他": 3}.get(it["group"], 4)
         name = it["name"]
         m = CCTV_RE.search(name)
         if m:
@@ -462,7 +485,8 @@ def main() -> int:
     print(f"[info] 地址族：IPv6 {fams['ipv6']} / IPv4 {fams['ipv4']} / 域名 {fams['unknown']}"
           f"（--family {args.family}，--prefer-family {args.prefer_family}）", file=sys.stderr)
     print(f"[ok] 输出 {len(kept)} 条频道（央视 {groups['央视']} / "
-          f"卫视 {groups['卫视']} / 其他 {groups['其他']}）-> {args.output}", file=sys.stderr)
+          f"卫视 {groups['卫视']} / 港澳台 {groups['港澳台']} / "
+          f"其他 {groups['其他']}）-> {args.output}", file=sys.stderr)
 
     if args.list:
         for it in kept:
