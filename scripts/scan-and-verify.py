@@ -199,6 +199,50 @@ def resolve_logos(names, source_logos, cache, timeout, ua, workers):
     return out
 
 
+def fetch_text(url, timeout, ua, limit=4 << 20):
+    """下载较大的文本（EPG 有 1MB+，不能用 fetch_manifest 的 8KB 上限）。"""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": ua})
+        with urllib.request.urlopen(req, timeout=timeout, context=_ctx()) as resp:
+            return resp.read(limit).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def norm_key(s):
+    return re.sub(r"[\s\-_·]", "", s or "").lower()
+
+
+def build_epg_index(epg_url, timeout, ua):
+    """
+    51zmt 这类 EPG 用的是数字频道 ID：
+        <channel id="1"><display-name>CCTV1</display-name></channel>
+    列表如果不带 tvg-id，节目单就永远是空的。这里把 display-name -> id 建索引。
+    """
+    body = fetch_text(epg_url, max(timeout * 4, 30), ua)
+    if not body:
+        return {}
+    idx = {}
+    for cid, block in re.findall(r"<channel\s+id=\"([^\"]+)\"[^>]*>(.*?)</channel>", body, re.S):
+        for dn in re.findall(r"<display-name[^>]*>([^<]*)</display-name>", block):
+            idx.setdefault(norm_key(dn), cid)
+    return idx
+
+
+def match_epg_id(name, index):
+    """把台名对到 EPG 的频道 ID。"""
+    if not index:
+        return ""
+    base = BP.LABEL_TAIL_RE.sub("", name).strip() or name
+    cands = [base, base.replace("-", ""), name, name.replace("-", "")]
+    cands += LOGO_ALIASES.get(base, [])          # 复用别名表（如 福建海峡卫视 -> 海峡卫视）
+    for c in cands:
+        cid = index.get(norm_key(c))
+        if cid:
+            return cid
+    return ""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="逐条实测所有源，只输出能播的频道")
     ap.add_argument("sources", help="源清单文件")
@@ -222,6 +266,8 @@ def main() -> int:
                          "默认开启：它会剔除入口写着 cctvN、实际喂广告/别的频道的线路")
     ap.add_argument("--list", action="store_true", help="打印存活清单")
     ap.add_argument("--min-channels", type=int, default=10)
+    ap.add_argument("--no-epg-id", action="store_true",
+                    help="不匹配节目单 ID（tvg-id）")
     ap.add_argument("--no-logo", action="store_true", help="不解析台标，输出不带 tvg-logo")
     ap.add_argument("--logo-cache", default="output/.logo-cache.json",
                     help="台标解析缓存，避免每次重探（默认 output/.logo-cache.json）")
@@ -360,12 +406,33 @@ def main() -> int:
     for it in kept:
         it["logo"] = logo_map.get(it["name"], "")
 
+    # ---- 3c. 节目单 ID（tvg-id）------------------------------------------
+    # 51zmt 的 EPG 用数字 ID，列表不带 tvg-id 的话节目单永远空着。
+    if args.no_epg_id or not args.epg:
+        epg_index = {}
+    else:
+        epg_index = build_epg_index(args.epg, args.timeout, args.user_agent)
+        print(f"[info] EPG 索引 {len(epg_index)} 个频道", file=sys.stderr)
+    for it in kept:
+        it["epg_id"] = match_epg_id(it["name"], epg_index)
+        # tvg-name 用去掉画质后缀的干净台名，兼容那些按名字匹配节目单的播放器
+        it["clean"] = BP.LABEL_TAIL_RE.sub("", it["name"]).strip() or it["name"]
+    if epg_index:
+        got = sum(1 for it in kept if it["epg_id"])
+        print(f"[info] 匹配到节目单 {got}/{len(kept)} 条", file=sys.stderr)
+
     # ---- 4. 输出 ---------------------------------------------------------
     lines = [f'#EXTM3U url-tvg="{args.epg}"' if args.epg else "#EXTM3U"]
     for it in kept:
-        logo = f' tvg-logo="{it["logo"]}"' if it.get("logo") else ""
-        lines.append(f'#EXTINF:-1 tvg-name="{it["name"]}"{logo} '
-                     f'group-title="{it["group"]}",{it["name"]}')
+        parts = ["#EXTINF:-1"]
+        if it.get("epg_id"):
+            parts.append(f'tvg-id="{it["epg_id"]}"')
+        parts.append(f'tvg-name="{it["clean"]}"')
+        if it.get("logo"):
+            parts.append(f'tvg-logo="{it["logo"]}"')
+        parts.append(f'group-title="{it["group"]}"')
+        # 逗号后是显示名：保留「高清」等信息
+        lines.append(" ".join(parts) + f',{it["name"]}')
         lines.append(it["url"])
 
     outdir = os.path.dirname(os.path.abspath(args.output))
