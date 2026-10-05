@@ -83,12 +83,25 @@ tvOS 上敲几十个字符的 URL 很痛苦，所以这里给出**短链**（Tin
 `result.alive.m3u` **不能**由 GitHub Actions 生成：Actions 跑在境外，
 测中文直播源的结果没有意义。必须在本机跑（约 3~5 分钟）：
 
+**一键刷新（推荐）**——脚本里已经配好排除港澳台等参数：
+
 ```bash
-python3 scripts/scan-and-verify.py sources.txt -o output/result.alive.m3u --insecure
-git add output/result.alive.m3u && git commit -m "刷新存活列表" && git push
+./refresh.sh
+```
+
+它会：拉全部源 → 逐条实测 → 只留能播的 → 提交推送。约 3~5 分钟。
+跑完到 obox 里刷新那条订阅即可。想改保留哪些分组，编辑 `refresh.sh` 顶部的 `EXCLUDE_GROUPS`。
+
+手动跑等价命令：
+
+```bash
+python3 scripts/scan-and-verify.py sources.txt -o output/result.alive.m3u \
+  --insecure --exclude-groups 港澳台 --max-per-channel 2
 ```
 
 `--insecure` 是给本机代理（Clash/Surge 做 HTTPS 中间人）用的；Actions 上不需要。
+`--exclude-groups` 可选 `央视` / `卫视` / `港澳台` / `其他`，逗号分隔。
+
 建议每隔一两周重跑一次——公开源会陆续失效。
 
 其他工具：

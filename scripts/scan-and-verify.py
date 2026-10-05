@@ -61,6 +61,9 @@ def main() -> int:
     ap.add_argument("--epg", default="https://epg.51zmt.top:8001/e.xml")
     ap.add_argument("--include", default=None, help="保留频道名正则（默认同 build-playlist）")
     ap.add_argument("--exclude", default=None, help="丢弃频道名正则（默认同 build-playlist）")
+    ap.add_argument("--exclude-groups", default=None,
+                    help="按分组整体排除，逗号分隔，可选：央视/卫视/港澳台/其他。"
+                         "例如 --exclude-groups 港澳台")
     ap.add_argument("--max-per-channel", type=int, default=2,
                     help="每台最多保留几条实测存活的线路，默认 2")
     ap.add_argument("--family", choices=["any", "ipv4", "ipv6"], default="any")
@@ -75,6 +78,7 @@ def main() -> int:
 
     inc = re.compile(args.include or BP.DEFAULT_INCLUDE)
     exc = re.compile(args.exclude or BP.DEFAULT_EXCLUDE)
+    skip_groups = {g.strip() for g in (args.exclude_groups or "").split(",") if g.strip()}
 
     with open(args.sources, encoding="utf-8") as fh:
         specs = [ln.strip() for ln in fh if ln.strip() and not ln.strip().startswith("#")]
@@ -95,6 +99,8 @@ def main() -> int:
         for _attrs, raw_name, url in BP.parse_m3u(text):
             name = BP.display_name(raw_name)
             if not name or not inc.search(name) or exc.search(name):
+                continue
+            if skip_groups and BP.group_of(name) in skip_groups:
                 continue
             fam = BP.address_family(url)
             if args.family != "any" and fam != "unknown" and fam != args.family:
