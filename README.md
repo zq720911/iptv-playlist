@@ -54,20 +54,39 @@ https://raw.githubusercontent.com/<你的用户名>/<仓库名>/main/output/resu
 
 ## 在 Apple TV 上添加（obox / APTV / iPlayTV 通用）
 
-tvOS 上敲几十个字符的 URL 很痛苦，所以这里同时给出**短链**（TinyURL，已实测跳转正确）：
+tvOS 上敲几十个字符的 URL 很痛苦，所以这里给出**短链**（TinyURL，已实测跳转正确）：
 
-| 用途 | 地址 | 长度 |
+| 用途 | 短链 | 内容 |
 |---|---|---|
-| 订阅（完整） | `https://raw.githubusercontent.com/zq720911/iptv-playlist/main/output/result.m3u` | 79 |
-| 订阅（**短链**） | `https://tinyurl.com/28vb7e3y` | 28 |
-| EPG（**短链**） | `https://tinyurl.com/27uyfc28` | 28 |
+| **订阅（推荐）** | **`https://tinyurl.com/25z7rpj6`** | `result.alive.m3u` —— **本机实测存活**的频道，命中率最高 |
+| 订阅（完整） | `https://tinyurl.com/28vb7e3y` | `result.m3u` —— 全部候选（59 条），含未验证的线路 |
+| 备用（jsDelivr） | `https://tinyurl.com/27dj4cg4` | 上面那条的 CDN 镜像，raw 被污染时用 |
+| EPG | `https://tinyurl.com/27uyfc28` | 节目单 |
+
+### 两个列表的区别（很重要）
+
+免费公开源的死链极多（实测整体存活率只有 17%~47%），所以本仓库同时维护两份：
+
+- **`result.m3u`** —— Actions 每天自动生成，来源是 iptv-org（实测存活率最高的源）
+- **`result.alive.m3u`** —— **在你自己网络上逐条探测后筛出来的**，只含确认能播的
+
+`result.alive.m3u` **不能**由 GitHub Actions 生成：Actions 跑在境外，
+测中文直播源的结果没有意义。它必须在本机跑：
+
+```bash
+python3 scripts/build-playlist.py sources.txt -o output/result.m3u --insecure   # 拉源生成候选
+python3 scripts/check-streams.py output/result.m3u --alive-out output/result.alive.m3u
+git add output/result.alive.m3u && git commit -m "刷新存活列表" && git push
+```
+
+`--insecure` 是给本机代理（Clash/Surge 做 HTTPS 中间人）用的；Actions 上不需要。
 
 obox 的入口是「添加服务器上的 M3u 地址」，三个输入框：
 
-1. **M3u 网址** → 填短链 `https://tinyurl.com/28vb7e3y`（**先清空框里预置的示例地址**）
+1. **M3u 网址** → 填短链 `https://tinyurl.com/25z7rpj6`（**先清空框里预置的示例地址**）
 2. **EPG 地址** → 填 `https://tinyurl.com/27uyfc28`（可留空，只是没有节目预告）
 3. **文件名** → 随便填，例如 `iptv`
-4. 点 **提交**，等它拉取完（97 个台，分央视 / 卫视 / 港澳台三组）
+4. 点 **提交**
 
 obox 界面上有个「Obox 支持直播格式」按钮，播不了时点它可以看到支持的流格式。
 
