@@ -20,10 +20,12 @@ import argparse
 import collections
 import concurrent.futures
 import importlib.util
+import json
 import os
 import re
 import ssl
 import sys
+import urllib.parse
 import urllib.request
 from urllib.parse import urljoin
 
@@ -115,6 +117,88 @@ def path_matches_channel(url, name, timeout, ua):
     return False, "(清单无分片)"
 
 
+# ---------------------------------------------------------------------------
+# 台标解析
+#   源里的 tvg-logo 质量参差，其中 imgur / fanmingming 在 Apple TV 上（不走代理）
+#   根本拉不到，显示出来就是破图或空白。这里改成主动解析：
+#     按优先级探测两套国内可达的图集，命中即用，并缓存结果避免每次重探。
+# ---------------------------------------------------------------------------
+LOGO_PROVIDERS = [
+    # 优先 gitee：分辨率最高（CCTV 普遍 640x320），国内直连快
+    "https://gitee.com/suxuang/logo/raw/master/mylogo/{key}.png",
+    "https://www.xn--rgv465a.top/tvlogo/{key}.png",
+]
+LOGO_BLOCKED = ("imgur.com", "fanmingming")     # Apple TV 上取不到，一律不用
+
+# 台名 -> 图集里的文件名（两套命名规则不同，实测出来的特例）
+LOGO_ALIASES = {
+    "CCTV-4 Asia": ["CCTV-4", "CCTV4"],
+    "CCTV-5+": ["CCTV-5+", "CCTV5+"],
+    "CCTV-8K": ["CCTV-8K", "CCTV8K"],
+    "CCTV-4K": ["CCTV-4K", "CCTV4K"],
+    "福建海峡卫视": ["海峡卫视", "福建海峡卫视"],
+    "黑龙江卫视": ["黑龙江卫视", "黑龙卫视"],
+}
+# 前缀兜底：如 CGTN Documentary / CGTN French 都退回通用 CGTN 台标
+LOGO_PREFIX_FALLBACK = [("CGTN", "CGTN"), ("CCTV", None)]
+
+
+def logo_keys(name):
+    # 台名里带了画质后缀（"CCTV-1 高清"），图集里没有，先剥掉
+    base = BP.LABEL_TAIL_RE.sub("", name).strip() or name
+    keys = {name, base, base.replace("-", ""), name.replace("-", "")}
+    for extra in LOGO_ALIASES.get(base, []) + LOGO_ALIASES.get(name, []):
+        keys.add(extra)
+        keys.add(extra.replace("-", ""))
+    for pref, fallback in LOGO_PREFIX_FALLBACK:
+        if fallback and base.upper().startswith(pref):
+            keys.add(fallback)
+    return [k for k in keys if k]
+
+
+def logo_ok(url, timeout, ua):
+    u = urllib.parse.quote(url, safe=":/?&=#+")
+    try:
+        req = urllib.request.Request(u, headers={"User-Agent": ua, "Range": "bytes=0-64"})
+        with urllib.request.urlopen(req, timeout=timeout, context=_ctx()) as resp:
+            head = resp.read(16)
+            return head[:8] == b"\x89PNG\r\n\x1a\n" or resp.status in (200, 206)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def resolve_logos(names, source_logos, cache, timeout, ua, workers):
+    """给每个台名解析一个可用台标；结果写入 cache 复用。返回 {台名: url}"""
+    todo = [n for n in names if n not in cache]
+    if todo:
+        print(f"[info] 解析台标（{len(todo)} 个台待探，其余用缓存）…", file=sys.stderr)
+        jobs = []
+        for n in todo:
+            for tpl in LOGO_PROVIDERS:
+                for key in logo_keys(n):
+                    jobs.append((n, tpl.format(key=key)))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            hits = list(pool.map(lambda nu: (nu[0], nu[1], logo_ok(nu[1], timeout, ua)), jobs))
+        for n in todo:
+            cache[n] = ""            # 先置空，保证每个台都有条目
+        for n, url, good in hits:
+            # jobs 按 provider 顺序生成，先命中的优先级更高，不被覆盖
+            if good and not cache.get(n):
+                cache[n] = url
+        found = sum(1 for n in todo if cache.get(n))
+        print(f"[info] 台标命中 {found}/{len(todo)}", file=sys.stderr)
+
+    out = {}
+    for n in names:
+        url = cache.get(n) or ""
+        if not url:
+            sl = source_logos.get(n, "")
+            if sl and not any(h in sl for h in LOGO_BLOCKED):
+                url = sl
+        out[n] = url
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="逐条实测所有源，只输出能播的频道")
     ap.add_argument("sources", help="源清单文件")
@@ -138,6 +222,9 @@ def main() -> int:
                          "默认开启：它会剔除入口写着 cctvN、实际喂广告/别的频道的线路")
     ap.add_argument("--list", action="store_true", help="打印存活清单")
     ap.add_argument("--min-channels", type=int, default=10)
+    ap.add_argument("--no-logo", action="store_true", help="不解析台标，输出不带 tvg-logo")
+    ap.add_argument("--logo-cache", default="output/.logo-cache.json",
+                    help="台标解析缓存，避免每次重探（默认 output/.logo-cache.json）")
     args = ap.parse_args()
 
     inc = re.compile(args.include or BP.DEFAULT_INCLUDE)
@@ -152,6 +239,7 @@ def main() -> int:
 
     # ---- 1. 拉源并保留【全部】候选线路 -----------------------------------
     cands = collections.OrderedDict()          # url -> display_name
+    src_logos = {}                             # 台名 -> 源里带的 tvg-logo
     ok_src = 0
     for spec in specs:
         try:
@@ -160,7 +248,7 @@ def main() -> int:
             print(f"[warn] 源失败，跳过: {spec} ({str(exc)[:60]})", file=sys.stderr)
             continue
         got = 0
-        for _attrs, raw_name, url in BP.parse_m3u(text):
+        for attrs, raw_name, url in BP.parse_m3u(text):
             name = BP.display_name(raw_name)
             if not name or not inc.search(name) or exc.search(name):
                 continue
@@ -172,6 +260,10 @@ def main() -> int:
             if url not in cands:
                 cands[url] = name
                 got += 1
+            if name not in src_logos:
+                m = re.search(r'tvg-logo="([^"]+)"', attrs or "")
+                if m:
+                    src_logos[name] = m.group(1)
         ok_src += 1
         print(f"[ok] {spec} -> 候选 {got} 条", file=sys.stderr)
 
@@ -242,10 +334,38 @@ def main() -> int:
 
     kept.sort(key=final_key)
 
+    # ---- 3b. 台标解析 ----------------------------------------------------
+    kept_names = list(dict.fromkeys(it["name"] for it in kept))
+    if args.no_logo:
+        logo_map = {n: "" for n in kept_names}
+    else:
+        cache = {}
+        if args.logo_cache and os.path.exists(args.logo_cache):
+            try:
+                with open(args.logo_cache, encoding="utf-8") as fh:
+                    cache = json.load(fh)
+            except Exception:  # noqa: BLE001
+                cache = {}
+        logo_map = resolve_logos(kept_names, src_logos, cache, args.timeout,
+                                 args.user_agent, args.workers)
+        if args.logo_cache:
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(args.logo_cache)), exist_ok=True)
+                with open(args.logo_cache, "w", encoding="utf-8") as fh:
+                    json.dump(cache, fh, ensure_ascii=False, indent=0)
+            except Exception:  # noqa: BLE001
+                pass
+        print(f"[info] 最终带台标 {sum(1 for v in logo_map.values() if v)}/{len(kept_names)} 个台",
+              file=sys.stderr)
+    for it in kept:
+        it["logo"] = logo_map.get(it["name"], "")
+
     # ---- 4. 输出 ---------------------------------------------------------
     lines = [f'#EXTM3U url-tvg="{args.epg}"' if args.epg else "#EXTM3U"]
     for it in kept:
-        lines.append(f'#EXTINF:-1 tvg-name="{it["name"]}" group-title="{it["group"]}",{it["name"]}')
+        logo = f' tvg-logo="{it["logo"]}"' if it.get("logo") else ""
+        lines.append(f'#EXTINF:-1 tvg-name="{it["name"]}"{logo} '
+                     f'group-title="{it["group"]}",{it["name"]}')
         lines.append(it["url"])
 
     outdir = os.path.dirname(os.path.abspath(args.output))

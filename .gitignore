@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .verify/
+
+# 台标解析缓存：本地保留可加速下次刷新；删掉它就会重新探测台标
+output/.logo-cache.json

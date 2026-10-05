@@ -97,6 +97,20 @@ tvOS 上敲几十个字符的 URL 很痛苦，所以这里给出**短链**（Tin
 这项校验默认开启（`--no-path-check` 可关）。它对 CCTV 这类命名规范的台有效；
 卫视的拼音缩写五花八门，推导不出标识符，所以只做存活检查。
 
+### 台标（图标）
+
+源里带的 `tvg-logo` 质量参差，而且**有不少指向 imgur** —— 那个在 Apple TV 上
+（不走代理）根本拉不到，显示出来就是破图。所以脚本改成主动解析：
+
+- 按优先级探测两套**国内直连可达**的图集，命中即用：
+  1. `gitee.com/suxuang/logo` —— CCTV 普遍 **640×320**，最清晰
+  2. `www.xn--rgv465a.top/tvlogo` —— 300×180，作为补充
+- 屏蔽 `imgur` / `fanmingming`（Apple TV 上取不到）
+- 台名会先剥掉「高清/标清」后缀再查图集，`CCTV-4 Asia` 之类的特例走别名表
+- 结果缓存在 `output/.logo-cache.json`（已 gitignore）；删掉它就会重新探测
+
+实测 65/65 全部命中。关掉用 `--no-logo`。
+
 `result.alive.m3u` **不能**由 GitHub Actions 生成：Actions 跑在境外，
 测中文直播源的结果没有意义。必须在本机跑（约 3~5 分钟）：
 
