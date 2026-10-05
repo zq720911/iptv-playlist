@@ -67,19 +67,38 @@ tvOS 上敲几十个字符的 URL 很痛苦，所以这里给出**短链**（Tin
 
 免费公开源的死链极多（实测整体存活率只有 17%~47%），所以本仓库同时维护两份：
 
-- **`result.m3u`** —— Actions 每天自动生成，来源是 iptv-org（实测存活率最高的源）
+- **`result.m3u`** —— Actions 每天自动生成，候选池（没验证过，死链多）
 - **`result.alive.m3u`** —— **在你自己网络上逐条探测后筛出来的**，只含确认能播的
 
+### 为什么需要「本机实测」这一步
+
+免费源里 60%~85% 的线路是死链。而按「每台留 2 条 + 按画质排序取前 2」的常规构建方式，
+**同一频道里的死线路会把能播的那条挤掉**。实测对比：
+
+| 做法 | 结果 |
+|---|---|
+| 直接构建（每台取前 2 条） | 59 个台，**只有 23 条能播**，卫视只剩广东卫视 |
+| 保留全部候选 → 逐条实测 → 筛活的 | **75 个台 / 137 条线路**，卫视 **37 个**、央视 28 个、港澳台 10 个 |
+
 `result.alive.m3u` **不能**由 GitHub Actions 生成：Actions 跑在境外，
-测中文直播源的结果没有意义。它必须在本机跑：
+测中文直播源的结果没有意义。必须在本机跑（约 3~5 分钟）：
 
 ```bash
-python3 scripts/build-playlist.py sources.txt -o output/result.m3u --insecure   # 拉源生成候选
-python3 scripts/check-streams.py output/result.m3u --alive-out output/result.alive.m3u
+python3 scripts/scan-and-verify.py sources.txt -o output/result.alive.m3u --insecure
 git add output/result.alive.m3u && git commit -m "刷新存活列表" && git push
 ```
 
 `--insecure` 是给本机代理（Clash/Surge 做 HTTPS 中间人）用的；Actions 上不需要。
+建议每隔一两周重跑一次——公开源会陆续失效。
+
+其他工具：
+
+```bash
+# 源体检：哪些源还能拉到
+python3 scripts/build-playlist.py sources.txt --probe-only --insecure
+# 体检一份已有列表的每条线路
+python3 scripts/check-streams.py output/result.m3u --alive-out /tmp/a.m3u
+```
 
 obox 的入口是「添加服务器上的 M3u 地址」，三个输入框：
 

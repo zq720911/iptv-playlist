@@ -6,34 +6,42 @@
 #   体检命令（源失效时先跑这个）：
 #     python3 scripts/build-playlist.py sources.txt --probe-only
 #
-# ⚠️ 重要：源不是越多越好。同一频道只保留 2 条线路、按画质排序取前 2，
-#    所以【低质量的源会把你高质量源的活线路挤掉】。实测数据见下。
+# ⚠️ 两种用法，源清单的取舍完全不同：
+#
+#   A) 给 GitHub Actions 自动构建 result.m3u 用（scripts/build-playlist.py）
+#      —— 每台只留 2 条、按画质排序取前 2，所以【低质量的源会挤掉好源的活线路】。
+#         这种用法下源越少越好，只留 iptv-org 效果最佳。
+#
+#   B) 给本机实测扫描用（scripts/scan-and-verify.py）
+#      —— 保留【全部】候选线路并逐条探测，源越多越好（覆盖越广）。
+#
+# 下面把两套都需要的源都列出来：iptv-org 置顶（两种用法都要），
+# 其余源只在用法 B 下有意义，但留着不会有害（构建时排在后面即可）。
 # ============================================================================
 
-# --- 主力：iptv-org 中国分类 -----------------------------------------------
-#   2026-10 实测（广西电信，本地逐条探测）：
-#     countries/cn.m3u  145 条 -> 抽样存活 47%    ← 全场最高
-#     streams/cn.m3u    505 条 -> 抽样存活 32%
-#   单用这两个源，成品 59 个台、实测存活 42%，
-#   包含 CCTV-1 ~ CCTV-17 全套 + 北京/广东卫视。
+# --- iptv-org 中国分类：抽样存活率最高，两种用法都要 ---
+#   countries/cn.m3u  145 条 -> 47%
+#   streams/cn.m3u    505 条 -> 32%
 https://iptv-org.github.io/iptv/countries/cn.m3u
 https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u
 
 
-# --- 以下源 2026-10 实测存活率低，默认关闭 ---------------------------------
-#   它们条数多（上千条）但绝大多数是死链，且会挤掉上面 iptv-org 的活线路。
-#   想要更广的频道覆盖（港澳台、更多卫视）时再打开，并接受大量频道播不了。
+# --- 以下源条数多、整体存活率低，但【卫视覆盖最全】 ---
+#   只有配合本机实测扫描（scan-and-verify.py）才有价值：
+#   2026-10 穷尽扫描实测——793 条卫视/央视候选里捞出 297 条活线路、95 个台、39 个卫视，
+#   其中湖南/浙江/江苏/东方/深圳/山东等卫视全部来自这几个源。
+#   ⚠️ 不要用它们跑 build-playlist.py 直接出成品，会挤掉 iptv-org 的活线路。
 #
-# Guovin/iptv-api  —— 1616 条 / 抽样存活 17%
-# https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u
-# https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u
+# Guovin/iptv-api
+https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u
+https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u
 #
-# fanmingming/live —— ipv6.m3u 82 条 / 存活 17%；index.m3u 94 条 / 存活 0%
-# https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u
-# https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u
+# fanmingming/live
+https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u
+https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u
 #
-# YanG-1989/m3u —— 123 条 / 存活 12%
-# https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u
+# YanG-1989/m3u
+https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u
 
 
 # --- 2026-10 实测 404（分支/路径已变），需要时自行到项目里找新路径 ---
