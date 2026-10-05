@@ -209,13 +209,28 @@ RB5009 上执行，看是否拿到 `delegated prefix`（电信一般给 /60 或 
 `/ipv6 nd prefix print` 里有前缀。
 
 **3. Apple TV 实际拿到了 IPv6 地址**
-Apple TV → 设置 → 网络 → 当前网络，看有没有 `IPv6 地址`（应该是以 `240e:` 开头的公网地址，
-不是 `fe80:` 开头的链路本地地址）。
+
+⚠️ **别去 tvOS 的设置里找**——tvOS 的网络页面**只显示 IPv4 地址，不显示 IPv6**，
+所以"设置里看不到 IPv6"并不等于没有。这是最容易误判的一点（本项目就踩过）。
+
+正确的查法：**在 Mac 上查 Apple TV 的 mDNS 记录**（主机名从 `dns-sd -B _airplay._tcp local` 能看到）：
+
+```bash
+dscacheutil -q host -a name keting.local | grep ipv6_address
+```
+
+拿到地址后，直接连它的 AirPlay 端口验证这个 IPv6 是不是活的：
+
+```bash
+nc -6 -z -w 4 240e:a4:b1fe:c400:109d:9cf7:7463:98ca 7000 && echo "IPv6 可用"
+```
+
+能连上就说明 Apple TV 的 IPv6 完全没问题，IPv6 直播源可以正常播。
 
 另外若你在 IPv6 上配了防火墙，记得放行 `forward` 链到内网客户端的出向流量，
 否则会有 IPv6 地址但连不上。
 
-**如果 Apple TV 拿不到 IPv6**：IPv6 源会全部播不了（表现为频道列表有、点了转圈）。
+**如果 Apple TV 确实拿不到 IPv6**：IPv6 源会全部播不了（表现为频道列表有、点了转圈）。
 三种处理：修好路由器 IPv6 下发；或改用 `--family ipv4` 只要 IPv4 源；
 或保留 `--max-per-family 1` 靠 IPv4 兜底线路顶着。
 
