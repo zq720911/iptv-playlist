@@ -5,25 +5,38 @@
 #
 #   体检命令（源失效时先跑这个）：
 #     python3 scripts/build-playlist.py sources.txt --probe-only
+#
+# ⚠️ 重要：源不是越多越好。同一频道只保留 2 条线路、按画质排序取前 2，
+#    所以【低质量的源会把你高质量源的活线路挤掉】。实测数据见下。
 # ============================================================================
 
-# --- 主力：Guovin/iptv-api（自动采集 + 校验 + 测速，国内最活跃的聚合项目之一）---
-#   2026-10 实测：result.m3u 1619 条、ipv6/result.m3u 1303 条，均可用
-https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u
-https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u
-
-
-# --- fanmingming/live：老牌国内源，IPv6 版本质量不错 ---
-#   2026-10 实测：ipv6.m3u 82 条（55 条 IPv6）、index.m3u 94 条，均可用
-https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u
-https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u
-
-
-# --- 兜底：iptv-org 中国分类（海外维护，元数据规范，但卫视覆盖薄、无 IPv6）---
+# --- 主力：iptv-org 中国分类 -----------------------------------------------
+#   2026-10 实测（广西电信，本地逐条探测）：
+#     countries/cn.m3u  145 条 -> 抽样存活 47%    ← 全场最高
+#     streams/cn.m3u    505 条 -> 抽样存活 32%
+#   单用这两个源，成品 59 个台、实测存活 42%，
+#   包含 CCTV-1 ~ CCTV-17 全套 + 北京/广东卫视。
 https://iptv-org.github.io/iptv/countries/cn.m3u
+https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u
 
 
-# --- 以下地址 2026-10 实测返回 404（分支/路径已变），需要时自行到项目里找新路径 ---
+# --- 以下源 2026-10 实测存活率低，默认关闭 ---------------------------------
+#   它们条数多（上千条）但绝大多数是死链，且会挤掉上面 iptv-org 的活线路。
+#   想要更广的频道覆盖（港澳台、更多卫视）时再打开，并接受大量频道播不了。
+#
+# Guovin/iptv-api  —— 1616 条 / 抽样存活 17%
+# https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/result.m3u
+# https://raw.githubusercontent.com/Guovin/iptv-api/gd/output/ipv6/result.m3u
+#
+# fanmingming/live —— ipv6.m3u 82 条 / 存活 17%；index.m3u 94 条 / 存活 0%
+# https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u
+# https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u
+#
+# YanG-1989/m3u —— 123 条 / 存活 12%
+# https://raw.githubusercontent.com/YanG-1989/m3u/main/Gather.m3u
+
+
+# --- 2026-10 实测 404（分支/路径已变），需要时自行到项目里找新路径 ---
 # HerbertHe/iptv-sources
 # https://raw.githubusercontent.com/HerbertHe/iptv-sources/main/output/result.m3u
 # CCSH/IPTV

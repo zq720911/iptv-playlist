@@ -24,6 +24,7 @@ sources.txt 格式：每行一个 URL 或本地路径，`#` 开头为注释。
 import argparse
 import ipaddress
 import re
+import ssl
 import sys
 import urllib.request
 from collections import OrderedDict, defaultdict
@@ -198,10 +199,25 @@ def decode_text(raw: bytes) -> str:
     return raw.decode("gb18030", "replace")
 
 
-def load_source(spec: str, timeout: float) -> str:
+_SSL_CTX_INSECURE = None
+
+
+def _insecure_ctx():
+    global _SSL_CTX_INSECURE
+    if _SSL_CTX_INSECURE is None:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        _SSL_CTX_INSECURE = ctx
+    return _SSL_CTX_INSECURE
+
+
+def load_source(spec: str, timeout: float, insecure: bool = False) -> str:
     if re.match(r"^https?://", spec, re.IGNORECASE):
         req = urllib.request.Request(spec, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            req, timeout=timeout, context=_insecure_ctx() if insecure else None
+        ) as resp:
             return decode_text(resp.read())
     with open(spec, "rb") as fh:
         return decode_text(fh.read())
@@ -302,6 +318,10 @@ def main() -> int:
                     help="低于该数量视为失败并返回非 0，默认 10")
     ap.add_argument("--only-http", action="store_true",
                     help="丢弃非 http/https 的地址（rtsp/rtmp 等）")
+    ap.add_argument("--insecure", action="store_true",
+                    help="跳过 SSL 证书校验。本地若跑了带 HTTPS 中间人的代理"
+                         "（Clash/Surge 等），Python 会报 CERTIFICATE_VERIFY_FAILED；"
+                         "加这个参数即可。GitHub Actions 上不需要")
     ap.add_argument("--family", choices=["any", "ipv4", "ipv6"], default="any",
                     help="只保留该地址族的线路；域名（unknown）始终保留。"
                          "有 IPv6 公网时建议 ipv6，可滤掉大量失效的 IPv4 字面量源")
@@ -335,7 +355,7 @@ def main() -> int:
     ok_sources = 0
     for spec in specs:
         try:
-            text = load_source(spec, args.timeout)
+            text = load_source(spec, args.timeout, args.insecure)
         except Exception as exc:  # noqa: BLE001 - 单个源失败不应中断整体
             print(f"[warn] 源获取失败，已跳过: {spec} ({str(exc)[:80]})", file=sys.stderr)
             continue
