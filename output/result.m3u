@@ -1,0 +1,61 @@
+#EXTM3U url-tvg="https://epg.51zmt.top:8001/e.xml"
+#EXTINF:-1 tvg-name="CCTV-1 高清" tvg-logo="https://i.imgur.com/TpA3cUl.png" group-title="央视",CCTV-1 高清
+http://69.30.245.50/live/cctv1.m3u8
+#EXTINF:-1 tvg-name="CCTV-2 高清" tvg-logo="https://i.imgur.com/ILamhwU.png" group-title="央视",CCTV-2 高清
+http://74.91.26.218:82/live/cctv2hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-3 高清" tvg-logo="https://i.imgur.com/iFlkIuw.png" group-title="央视",CCTV-3 高清
+http://74.91.26.218:82/live/cctv3hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-5+" tvg-logo="https://i.imgur.com/OK8mdJV.png" group-title="央视",CCTV-5+
+https://myip.pdtvhd.com/Sports/streams/CCTV5pul.m3u8
+#EXTINF:-1 tvg-name="CCTV-6 高清" tvg-logo="https://i.imgur.com/rFiaef7.png" group-title="央视",CCTV-6 高清
+http://69.30.245.50/live/cctv6.m3u8
+#EXTINF:-1 tvg-name="CCTV-6" tvg-logo="https://i.imgur.com/rFiaef7.png" group-title="央视",CCTV-6
+https://live.eac-news.com/CCTV/streams/cctv6.m3u8
+#EXTINF:-1 tvg-name="CCTV-7 高清" tvg-logo="https://i.imgur.com/CKcPMQC.png" group-title="央视",CCTV-7 高清
+http://74.91.26.218:82/live/cctv7hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-8 高清" tvg-logo="https://i.imgur.com/GyHaZ8X.png" group-title="央视",CCTV-8 高清
+http://74.91.26.218:82/live/cctv8hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-9 标清" tvg-logo="https://i.imgur.com/3tivvMm.png" group-title="央视",CCTV-9 标清
+https://xykt-fix.github.io/Y77.m3u8
+#EXTINF:-1 tvg-name="CCTV-10 高清" tvg-logo="https://i.imgur.com/sSSO7UD.png" group-title="央视",CCTV-10 高清
+http://74.91.26.218:82/live/cctv10hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-11 高清" tvg-logo="https://i.imgur.com/CjOWx7L.png" group-title="央视",CCTV-11 高清
+http://74.91.26.218:82/live/cctv11hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-12 高清" tvg-logo="https://i.imgur.com/3yTuiOM.png" group-title="央视",CCTV-12 高清
+http://74.91.26.218:82/live/cctv12hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-13 高清" tvg-logo="https://i.imgur.com/6MTar6J.png" group-title="央视",CCTV-13 高清
+http://go.bkpcp.top/mg/cctv13
+#EXTINF:-1 tvg-name="CCTV-13 高清" tvg-logo="https://i.imgur.com/6MTar6J.png" group-title="央视",CCTV-13 高清
+http://74.91.26.218:82/live/cctv13hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-14 高清" tvg-logo="https://i.imgur.com/c5SXW7i.png" group-title="央视",CCTV-14 高清
+http://74.91.26.218:82/live/cctv14hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-15 高清" tvg-logo="https://i.imgur.com/CCV0eRG.png" group-title="央视",CCTV-15 高清
+https://xykt-fix.github.io/play/a02e/index.m3u8
+#EXTINF:-1 tvg-name="CCTV-16 高清" tvg-logo="https://i.imgur.com/ZzV6JQp.png" group-title="央视",CCTV-16 高清
+http://74.91.26.218:82/live/cctv16hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-17 高清" tvg-logo="https://i.imgur.com/jSQURxS.png" group-title="央视",CCTV-17 高清
+http://74.91.26.218:82/live/cctv17hd.m3u8
+#EXTINF:-1 tvg-name="CCTV-4K" tvg-logo="https://i.imgur.com/fxusYlX.png" group-title="央视",CCTV-4K
+http://198.204.240.250:82/live/cctv4k.m3u8
+#EXTINF:-1 tvg-name="CCTV-8K" tvg-logo="https://i.imgur.com/fxVPMJF.png" group-title="央视",CCTV-8K
+http://192.151.150.154/live/cctv8k.m3u8
+#EXTINF:-1 tvg-name="云南卫视 高清" tvg-logo="https://www.tvchinese.net/uploads/tv/yunnantv.jpg" group-title="卫视",云南卫视 高清
+https://hwapi.yunshicloud.com/8xughf/e0bx15.m3u8
+#EXTINF:-1 tvg-name="北京卫视 高清" tvg-logo="https://i.imgur.com/vsktAez.png" group-title="卫视",北京卫视 高清
+http://go.bkpcp.top/mg/bjws
+#EXTINF:-1 tvg-name="江苏卫视 高清" group-title="卫视",江苏卫视 高清
+http://39.134.24.166/dbiptv.sn.chinamobile.com/PLTV/88888890/224/3221226200/index.m3u8
+#EXTINF:-1 tvg-name="浙江卫视 高清" tvg-logo="https://i.imgur.com/NFFQNhq.png" group-title="卫视",浙江卫视 高清
+http://39.134.115.163:8080/PLTV/88888910/224/3221225703/index.m3u8
+#EXTINF:-1 tvg-name="山东卫视 高清" tvg-logo="https://www.tvchinese.net/uploads/tv/shandongtv.jpg" group-title="卫视",山东卫视 高清
+http://125.210.152.18:9090/live/SDWSHD_H265.m3u8
+#EXTINF:-1 tvg-name="四川卫视 标清" tvg-logo="https://i.imgur.com/r5xivih.png" group-title="卫视",四川卫视 标清
+http://39.134.115.163:8080/PLTV/88888910/224/3221225733/index.m3u8
+#EXTINF:-1 tvg-name="延边卫视 标清" tvg-logo="https://i.imgur.com/UKKsnhD.png" group-title="卫视",延边卫视 标清
+http://223.110.245.139/PLTV/4/224/3221227008/index.m3u8
+#EXTINF:-1 tvg-name="兵团卫视" tvg-logo="https://i.imgur.com/Y4qxDqz.png" group-title="卫视",兵团卫视
+http://112.25.48.68/live/program/live/btws/1300000/mnf.m3u8
+#EXTINF:-1 tvg-name="广东卫视" tvg-logo="https://parco-zh.github.io/demo/guangdong.jpg" group-title="卫视",广东卫视
+https://h5cul1yar48um3t.wcetv.com/hls/gdsatellite.m3u8
+#EXTINF:-1 tvg-name="深圳卫视" group-title="卫视",深圳卫视
+https://livepull-tcms.sztv.com.cn/live/sz4Kpgm.m3u8
