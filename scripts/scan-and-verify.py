@@ -25,6 +25,7 @@ import re
 import ssl
 import sys
 import urllib.request
+from urllib.parse import urljoin
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "VLC/3.0.20 LibVLC/3.0.20"
@@ -42,16 +43,76 @@ def load_builder():
 BP = load_builder()
 
 
-def probe(url, timeout, ua):
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+_CTX = None
+
+
+def _ctx():
+    global _CTX
+    if _CTX is None:
+        _CTX = ssl.create_default_context()
+        _CTX.check_hostname = False
+        _CTX.verify_mode = ssl.CERT_NONE
+    return _CTX
+
+
+def fetch_manifest(url, timeout, ua):
+    """返回清单文本；失败返回 None。"""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": ua})
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-            return "#EXTM3U" in resp.read(4096).decode("utf-8", "replace")
+        with urllib.request.urlopen(req, timeout=timeout, context=_ctx()) as resp:
+            return resp.read(8192).decode("utf-8", "replace")
     except Exception:  # noqa: BLE001
-        return False
+        return None
+
+
+def probe(url, timeout, ua):
+    body = fetch_manifest(url, timeout, ua)
+    return bool(body) and "#EXTM3U" in body
+
+
+def expected_tokens(name):
+    """
+    从台名推导「分片路径里应该出现」的标识符。
+    只对 CCTV 这类命名规范的台有效；推导不出来就返回空集（表示不做这项检查）。
+    """
+    toks = set()
+    if re.search(r"CCTV[-\s]?4K\b", name, re.IGNORECASE):
+        toks.add("cctv4k")
+    if re.search(r"CCTV[-\s]?8K\b", name, re.IGNORECASE):
+        toks.add("cctv8k")
+    m = re.search(r"CCTV[-\s]?(\d{1,2})", name, re.IGNORECASE)
+    if m:
+        n = m.group(1)
+        toks.add(f"cctv{n}")
+        if "+" in name:
+            toks.add(f"cctv{n}p")
+    return toks
+
+
+def path_matches_channel(url, name, timeout, ua):
+    """
+    拉清单看「真实分片路径」，判断它是不是真的在播这个频道。
+
+    这一项专门抓那种「入口地址写着 cctvN，实际喂别的内容」的线路 ——
+    实测抓到的例子：入口 cdnlive/cctv16 实际是 cdnlive/mkt/（marketing），
+    入口 ?id=cctv3hd 实际是 /gslb/yss/，入口 cdnlive/cctv5 实际是 /cdnlive/byt/。
+
+    返回 (是否通过, 实际分片路径)。不适用时一律通过。
+    """
+    toks = expected_tokens(name)
+    if not toks:
+        return True, ""
+    body = fetch_manifest(url, timeout, ua)
+    if not body:
+        return False, "(清单拉取失败)"
+    for line in body.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            seg = re.sub(r"\?.*$", "", urljoin(url, line)).lower()
+            if any(t in seg for t in toks):
+                return True, seg
+            return False, seg
+    return False, "(清单无分片)"
 
 
 def main() -> int:
@@ -72,6 +133,9 @@ def main() -> int:
     ap.add_argument("--user-agent", default=UA)
     ap.add_argument("--insecure", action="store_true",
                     help="拉源时跳过 SSL 校验（本机有 HTTPS 中间人代理时需要）")
+    ap.add_argument("--no-path-check", action="store_true",
+                    help="关闭「真实分片路径是否匹配频道名」这项检查。"
+                         "默认开启：它会剔除入口写着 cctvN、实际喂广告/别的频道的线路")
     ap.add_argument("--list", action="store_true", help="打印存活清单")
     ap.add_argument("--min-channels", type=int, default=10)
     args = ap.parse_args()
@@ -126,6 +190,28 @@ def main() -> int:
     alive = [(cands[u], u) for u, good in zip(urls, results) if good]
     rate = len(alive) / len(urls) * 100
     print(f"[info] 实测存活 {len(alive)}/{len(urls)} = {rate:.0f}%", file=sys.stderr)
+
+    # ---- 2b. 频道一致性检查：入口写着 cctvN，实际是不是真在播 cctvN --------
+    if not args.no_path_check:
+        print("[info] 校验「真实分片路径」是否匹配频道名（剔除挂羊头卖狗肉的线路）…",
+              file=sys.stderr)
+        checked = []
+        dropped = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+            verdicts = list(pool.map(
+                lambda nu: path_matches_channel(nu[1], nu[0], args.timeout, args.user_agent),
+                alive))
+        for (name, url), (ok, seg) in zip(alive, verdicts):
+            if ok:
+                checked.append((name, url))
+            else:
+                dropped.append((name, url, seg))
+        print(f"[info] 分片路径不匹配、已剔除 {len(dropped)} 条", file=sys.stderr)
+        for name, url, seg in dropped[:12]:
+            print(f"       {name:<18} 实际 -> {seg[:60]}", file=sys.stderr)
+        if len(dropped) > 12:
+            print(f"       … 另有 {len(dropped) - 12} 条", file=sys.stderr)
+        alive = checked
 
     # ---- 3. 按台归并，每台留前 N 条 --------------------------------------
     by_ch = collections.OrderedDict()

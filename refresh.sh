@@ -18,8 +18,16 @@ python3 scripts/scan-and-verify.py sources.txt \
   --exclude-groups "$EXCLUDE_GROUPS" \
   --workers 24 \
   --timeout 6 \
-  --max-per-channel 2 \
+  --max-per-channel 1 \
   --min-channels 20
+
+# 说明：
+#   --exclude-groups  : 不想要的分组
+#   --max-per-channel : 每个台保留几条线路。1 = 列表最干净（每个台一个标签）；
+#                       2 = 多一条备用镜像（会看到同名两个标签）
+#   默认开启的“分片路径校验”会剔除【入口写着 cctvN、实际喂广告/别的频道】的线路，
+#   实测抓到过 cdnlive/mkt/（marketing）、/gslb/yss/、/cdnlive/byt/ 这些。
+#   想关掉加 --no-path-check
 
 echo
 echo "==> 提交结果"
