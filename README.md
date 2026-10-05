@@ -52,6 +52,25 @@ git add -A && git commit -m "init" && git push
 https://raw.githubusercontent.com/<你的用户名>/<仓库名>/main/output/result.m3u
 ```
 
+## 在 Apple TV 上添加（obox / APTV / iPlayTV 通用）
+
+tvOS 上敲几十个字符的 URL 很痛苦，所以这里同时给出**短链**（TinyURL，已实测跳转正确）：
+
+| 用途 | 地址 | 长度 |
+|---|---|---|
+| 订阅（完整） | `https://raw.githubusercontent.com/zq720911/iptv-playlist/main/output/result.m3u` | 79 |
+| 订阅（**短链**） | `https://tinyurl.com/28vb7e3y` | 28 |
+| EPG（**短链**） | `https://tinyurl.com/27uyfc28` | 28 |
+
+obox 的入口是「添加服务器上的 M3u 地址」，三个输入框：
+
+1. **M3u 网址** → 填短链 `https://tinyurl.com/28vb7e3y`（**先清空框里预置的示例地址**）
+2. **EPG 地址** → 填 `https://tinyurl.com/27uyfc28`（可留空，只是没有节目预告）
+3. **文件名** → 随便填，例如 `iptv`
+4. 点 **提交**，等它拉取完（97 个台，分央视 / 卫视 / 港澳台三组）
+
+obox 界面上有个「Obox 支持直播格式」按钮，播不了时点它可以看到支持的流格式。
+
 ## 国内可达性：很重要
 
 `raw.githubusercontent.com` 在国内经常被 DNS 污染或超时，Apple TV 拉不到就会一片空白。优先用 CDN 镜像：
@@ -62,6 +81,17 @@ https://cdn.jsdelivr.net/gh/<你的用户名>/<仓库名>@main/output/result.m3u
 
 如果两个都不稳，退路是**不用订阅、改手动**：把 `output/result.m3u` 下载下来，
 用 iPlayTV 的本地文件 / iCloud 导入（APTV 主要吃远程 URL），过一阵子再手动更新一次。
+
+### 已知的兼容性风险
+
+| 项 | 数量 | 说明 |
+|---|---|---|
+| 仅 IPv6 线路的台 | 14 | `CCTV-13`、`CCTV-14少儿`、`CCTV-15`、`CCTV-6电影`、`CCTV-5体育`、`中国教育1~4台`、`云南卫视` 等；播放器或 Apple TV 不支持 IPv6 时这些台播不了 |
+| 带过期令牌的线路 | 33 | URL 含 `GuardEncType`/`accountinfo`（移动 CDN 鉴权串），会过期；工作流每天刷新 |
+| FLV 线路 | 1 | tvOS 基本不支持 |
+
+需要「保守版」列表（只留 IPv4/域名、去掉 FLV 和令牌地址）时，用 `--family ipv4` 加一个
+`--url-exclude` 重新生成到 `output/result.lite.m3u`，在 obox 里加第二条订阅即可。
 
 ## 首次使用先做「源体检」
 
