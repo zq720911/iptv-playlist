@@ -73,8 +73,6 @@ http://[2409:8087:8:21::18]:6610/otttv.bj.chinamobile.com/PLTV/88888888/224/3221
 https://live.264788.xyz/channel/cctv17?streamid=348c8c0c04a6d2b900e5a3bcb4af8ce1&livekey=01WgOR41rriMmMkzNsd0UoaxJRwetZdxIvtVk
 #EXTINF:-1 tvg-name="CGTN Documentary 高清" group-title="央视",CGTN Documentary 高清
 https://amg00405-rakutentv-cgtndocumentary-rakuten-0ql8j.amagi.tv/master.m3u8
-#EXTINF:-1 tvg-name="CGTN French 高清" group-title="央视",CGTN French 高清
-http://145.239.5.177/214/index.m3u8
 #EXTINF:-1 tvg-name="CGTN Global Biz 高清" group-title="央视",CGTN Global Biz 高清
 https://fastlive.cctvplus.com/out/v1/2b3d8a0c805d437f9dc85b764c2ac599/index.m3u8
 #EXTINF:-1 tvg-name="CGTN 高清" group-title="央视",CGTN 高清
